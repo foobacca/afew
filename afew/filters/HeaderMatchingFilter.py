@@ -16,12 +16,15 @@ class HeaderMatchingFilter(Filter):
         if self.pattern is not None:
             self.pattern = re.compile(self.pattern, re.I)
 
+    def tag_if_header_matches(self, message, header):
+        value = message.get_header(header)
+        match = self.pattern.search(value)
+        if match:
+            sub = lambda tag: tag.format(**match.groupdict())
+            self.remove_tags(message, *map(sub, self._tags_to_remove))
+            self.add_tags(message, *map(sub, self._tags_to_add))
+
     def handle_message(self, message):
         if self.header is not None and self.pattern is not None:
             if not self._tag_blacklist.intersection(message.get_tags()):
-                value = message.get_header(self.header)
-                match = self.pattern.search(value)
-                if match:
-                    sub = lambda tag: tag.format(**match.groupdict())
-                    self.remove_tags(message, *map(sub, self._tags_to_remove))
-                    self.add_tags(message, *map(sub, self._tags_to_add))
+                self.tag_if_header_matches(message, self.header)
